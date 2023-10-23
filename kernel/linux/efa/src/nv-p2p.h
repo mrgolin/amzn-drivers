@@ -184,7 +184,7 @@ struct nvidia_p2p_page_table {
  *     insufficient resources were available to complete the operation.
  *   -EIO         if an unknown error occurred.
  */
-int nvidia_p2p_get_pages( u64 p2p_token, u32 va_space,
+int __weak nvidia_p2p_get_pages( u64 p2p_token, u32 va_space,
         u64 virtual_address, u64 length,
         struct nvidia_p2p_page_table **page_table,
         void (*free_callback)(void *data), void *data);
@@ -222,7 +222,7 @@ int nvidia_p2p_get_pages( u64 p2p_token, u32 va_space,
  *     insufficient resources were available to complete the operation.
  *   -EIO         if an unknown error occurred.
  */
-int nvidia_p2p_get_pages_persistent(u64 virtual_address,
+int __weak nvidia_p2p_get_pages_persistent(u64 virtual_address,
         u64 length,
         struct nvidia_p2p_page_table **page_table,
         u32 flags);
@@ -265,7 +265,7 @@ struct nvidia_p2p_dma_mapping {
  *    -ENOTSUPP   if the requested operation is not supported.
  *    -EIO        if an unknown error occurred.
  */
-int nvidia_p2p_dma_map_pages(struct pci_dev *peer,
+int __weak nvidia_p2p_dma_map_pages(struct pci_dev *peer,
         struct nvidia_p2p_page_table *page_table,
         struct nvidia_p2p_dma_mapping **dma_mapping);
 
@@ -289,7 +289,7 @@ int nvidia_p2p_dma_map_pages(struct pci_dev *peer,
  *    -EINVAL     if an invalid argument was supplied.
  *    -EIO        if an unknown error occurred.
  */
-int nvidia_p2p_dma_unmap_pages(struct pci_dev *peer,
+int __weak nvidia_p2p_dma_unmap_pages(struct pci_dev *peer,
         struct nvidia_p2p_page_table *page_table,
         struct nvidia_p2p_dma_mapping *dma_mapping);
 
@@ -314,7 +314,7 @@ int nvidia_p2p_dma_unmap_pages(struct pci_dev *peer,
  *   -EINVAL      if an invalid argument was supplied.
  *   -EIO         if an unknown error occurred.
  */
-int nvidia_p2p_put_pages(u64 p2p_token,
+int __weak nvidia_p2p_put_pages(u64 p2p_token,
         u32 va_space, u64 virtual_address,
         struct nvidia_p2p_page_table *page_table);
 
@@ -337,7 +337,7 @@ int nvidia_p2p_put_pages(u64 p2p_token,
  *   -EINVAL      if an invalid argument was supplied.
  *   -EIO         if an unknown error occurred.
  */
-int nvidia_p2p_put_pages_persistent(u64 virtual_address,
+int __weak nvidia_p2p_put_pages_persistent(u64 virtual_address,
         struct nvidia_p2p_page_table *page_table,
         u32 flags);
 

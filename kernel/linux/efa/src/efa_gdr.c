@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright 2019-2021 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2019-2023 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -23,6 +23,7 @@ struct efa_nvmem_ops {
 	int (*dma_unmap_pages)(struct pci_dev *peer,
 			       struct nvidia_p2p_page_table *page_table,
 			       struct nvidia_p2p_dma_mapping *dma_mapping);
+	bool using_link_symbols;
 };
 
 struct efa_nvmem {
@@ -51,8 +52,28 @@ static unsigned int nvmem_pgsz(struct efa_dev *dev, struct efa_p2pmem *p2pmem)
 	}
 }
 
+static int nvmem_get_fp_direct(struct efa_nvmem *nvmem)
+{
+	if (!nvidia_p2p_get_pages ||
+	    !nvidia_p2p_put_pages ||
+	    !nvidia_p2p_dma_map_pages ||
+	    !nvidia_p2p_dma_unmap_pages)
+		return -EINVAL;
+
+	nvmem->ops.get_pages = nvidia_p2p_get_pages;
+	nvmem->ops.put_pages = nvidia_p2p_put_pages;
+	nvmem->ops.dma_map_pages = nvidia_p2p_dma_map_pages;
+	nvmem->ops.dma_unmap_pages = nvidia_p2p_dma_unmap_pages;
+	nvmem->ops.using_link_symbols = true;
+
+	return 0;
+}
+
 static int nvmem_get_fp(struct efa_nvmem *nvmem)
 {
+	if (!nvmem_get_fp_direct(nvmem))
+		return 0;
+
 	nvmem->ops.get_pages = symbol_get(nvidia_p2p_get_pages);
 	if (!nvmem->ops.get_pages)
 		goto err_out;
@@ -81,8 +102,11 @@ err_out:
 	return -EINVAL;
 }
 
-static void nvmem_put_fp(void)
+static void nvmem_put_fp(struct efa_nvmem *nvmem)
 {
+	if (nvmem->ops.using_link_symbols)
+		return;
+
 	symbol_put(nvidia_p2p_dma_unmap_pages);
 	symbol_put(nvidia_p2p_dma_map_pages);
 	symbol_put(nvidia_p2p_put_pages);
@@ -179,7 +203,7 @@ static struct efa_p2pmem *nvmem_get(struct efa_dev *dev, u64 ticket, u64 start,
 err_put:
 	nvmem->ops.put_pages(0, 0, virt_start, nvmem->pgtbl);
 err_put_fp:
-	nvmem_put_fp();
+	nvmem_put_fp(nvmem);
 err_free:
 	kfree(nvmem);
 	return NULL;
@@ -214,7 +238,7 @@ static void nvmem_release(struct efa_dev *dev, struct efa_p2pmem *p2pmem,
 		nvmem->ops.put_pages(0, 0, nvmem->virt_start, nvmem->pgtbl);
 	}
 
-	nvmem_put_fp();
+	nvmem_put_fp(nvmem);
 	kfree(nvmem);
 }
 
@@ -224,7 +248,7 @@ bool nvmem_is_supported(void)
 
 	if (nvmem_get_fp(&dummynv))
 		return false;
-	nvmem_put_fp();
+	nvmem_put_fp(&dummynv);
 
 	return true;
 }
